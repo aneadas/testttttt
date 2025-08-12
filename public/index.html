@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Zdrapki – Vercel + Neon (Postgres)</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https://api.qrserver.com; connect-src 'self'; style-src 'self' 'unsafe-inline';">
+  <style>
+    :root{--bg:#0b0b0f;--card:#15151c;--ink:#e9e9ef;--muted:#a2a2b2;--ok:#18a957;--bad:#e45858}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto;background:var(--bg);color:var(--ink)}
+    .wrap{max-width:980px;margin:0 auto;padding:24px}
+    .card{background:var(--card);border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.25);padding:20px;margin:16px 0}
+    input,button{background:#1c1c26;color:var(--ink);border:1px solid #2a2a35;border-radius:10px;padding:10px 12px}
+    button{cursor:pointer}
+    .grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+    .qr{width:140px;height:140px}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#222;color:var(--muted);font-size:12px}
+    a{color:#7fb3ff}
+    @media print{ .noprint{display:none} body{background:#fff;color:#000} .ticket{width:58mm;padding:0;margin:0} .ticket *{font-family:monospace} .tk-line{border-top:1px dashed #000;margin:8px 0} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card"><h1>Zdrapki – Vercel + Neon</h1>
+      <p>API w <b>Vercel serverless</b>, baza <b>Postgres (Neon)</b>. QR i druk gotowe.</p>
+      <div class="grid noprint">
+        <a class="card" href="#admin" id="go-admin"><h3>Panel admin</h3><p>Generowanie, lista i druk testowy.</p></a>
+        <a class="card" href="#check" id="go-check"><h3>Strefa klienta</h3><p>Sprawdź kod.</p></a>
+      </div>
+    </div>
+
+    <div class="card" id="view-admin" style="display:none">
+      <h2>Panel admin</h2>
+      <form class="grid noprint" id="form-gen">
+        <div><label>Ile kodów?<br><input type="number" name="count" min="1" max="1000" value="10"></label></div>
+        <div><label>Opis nagrody (opcjonalnie)<br><input name="prize" placeholder="np. -10% / kawa gratis"></label></div>
+        <div style="align-self:end"><button>Generuj</button></div>
+      </form>
+      <div id="generated" class="grid"></div>
+      <div class="card"><h3>Ostatnie</h3><div id="last-codes"></div></div>
+    </div>
+
+    <div class="card" id="view-check" style="display:none">
+      <h2>Sprawdź zdrapkę</h2>
+      <form class="grid" id="form-check">
+        <div><label>Wpisz kod<br><input name="code" placeholder="ABCDE-12345" required></label></div>
+        <div style="align-self:end"><button>Sprawdź</button></div>
+      </form>
+      <div id="check-result"></div>
+    </div>
+
+    <div class="card noprint"><small>© Vercel + Neon</small></div>
+  </div>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>
