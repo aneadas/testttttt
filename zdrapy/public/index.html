@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Zdrapki – Vercel + Neon (Postgres)</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https://api.qrserver.com; connect-src 'self'; style-src 'self' 'unsafe-inline';">
   <style>
     :root{--bg:#0b0b0f;--card:#15151c;--ink:#e9e9ef;--muted:#a2a2b2;--ok:#18a957;--bad:#e45858}
     *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto;background:var(--bg);color:var(--ink)}
@@ -51,124 +52,6 @@
     <div class="card noprint"><small>© Vercel + Neon</small></div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js" defer></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', ()=>{
-      const qs = s=>document.querySelector(s);
-      const elGen = (html)=>{ const d=document.createElement('div'); d.innerHTML=html; return d.firstElementChild; };
-
-      function show(view){
-        qs('#view-admin').style.display = view==='admin'?'block':'none';
-        qs('#view-check').style.display = view==='check'?'block':'none';
-      }
-
-      async function api(path, opts){
-        const res = await fetch(path, opts);
-        if(!res.ok) throw new Error(await res.text());
-        return res.json();
-      }
-
-      // Router via location.hash
-      function router(){
-        const h = (location.hash||'').toLowerCase();
-        if(h.startsWith('#admin')){ show('admin'); loadLast(); }
-        else if(h.startsWith('#check')){ show('check'); }
-        else { show(''); }
-      }
-      window.addEventListener('hashchange', router);
-      router(); // initial
-
-      // Generate
-      qs('#form-gen').addEventListener('submit', async (e)=>{
-        e.preventDefault();
-        const fd = new FormData(e.target);
-        const count = Math.max(1, Math.min(1000, parseInt(fd.get('count')||'1')));
-        const prize = (fd.get('prize')||'').trim();
-        const out = qs('#generated'); out.innerHTML='Generuję...';
-        try{
-          const data = await api('/api/create', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({count, prize})});
-          out.innerHTML='';
-          data.codes.forEach(c=>{
-            const url = location.origin + '/?check&code=' + encodeURIComponent(c);
-            const card = elGen(`<div class="card"><div id="qr_${c}" class="qr"></div><div><b>${c}</b><br><small>${url}</small><br><a href="#" data-print="${c}" target="_blank">Wydruk testowy</a></div></div>`);
-            out.appendChild(card);
-            if(window.QRCode){
-              new QRCode(card.querySelector('#qr_'+CSS.escape(c)), {text:url, width:140, height:140, correctLevel: window.QRCode.CorrectLevel.M});
-            }
-          });
-          loadLast();
-        }catch(err){ out.innerHTML = '<span style="color:#e45858">Błąd: '+err.message+'</span>'; }
-      });
-
-      // List
-      async function loadLast(){
-        const box = qs('#last-codes'); box.innerHTML='Ładowanie...';
-        try{
-          const data = await api('/api/list');
-          box.innerHTML='';
-          data.rows.forEach(r=>{
-            const url = location.origin + '/?check&code=' + encodeURIComponent(r.code);
-            const row = elGen(`<div style="margin:6px 0">`+
-              `<b>${r.code}</b> • ${r.prize||''} `+
-              `<span class="pill">${r.redeemed_at? 'Wykorzystany':'Nowy'}</span> `+
-              ` • <a target="_blank" href="${url}">Link</a> `+
-              ` • <a target="_blank" href="#" data-print="${r.code}">Druk</a>`+
-            `</div>`);
-            box.appendChild(row);
-          });
-        }catch(err){ box.innerHTML = 'Błąd: '+err.message; }
-      }
-
-      // Check / redeem
-      qs('#form-check').addEventListener('submit', async (e)=>{
-        e.preventDefault();
-        const code = (new FormData(e.target).get('code')||'').toUpperCase().trim();
-        const out = qs('#check-result'); out.innerHTML='Sprawdzam...';
-        try{
-          const data = await api('/api/check?code='+encodeURIComponent(code));
-          if(!data.found){ out.innerHTML = '<p class="card" style="color:var(--bad)">Nieprawidłowy kod.</p>'; return; }
-          if(data.redeemed_at){ out.innerHTML = `<p class="card">Kod został już wykorzystany <b>${data.redeemed_at}</b>.</p>`; return; }
-          const prize = data.prize || 'Niespodzianka!';
-          out.innerHTML = `<div class="card"><h3>Gratulacje!</h3><p>Twoja nagroda: <b>${prize}</b></p>`+
-            `<a class="pill" href="#" id="do-redeem">Oznacz jako wykorzystany</a></div>`;
-          qs('#do-redeem').onclick = async (ev)=>{
-            ev.preventDefault();
-            try{
-              const r = await api('/api/redeem', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({code})});
-              out.innerHTML = `<p class="card" style="color:var(--ok)">Zrealizowano! (${r.redeemed_at})</p>`;
-            }catch(err){ out.innerHTML = 'Błąd: '+err.message; }
-          };
-        }catch(err){ out.innerHTML = 'Błąd: '+err.message; }
-      });
-
-      // Print
-      document.addEventListener('click', async (e)=>{
-        const a = e.target.closest('a[data-print]'); if(!a) return; e.preventDefault();
-        const code = a.getAttribute('data-print');
-        const data = await api('/api/check?code='+encodeURIComponent(code));
-        if(!data.found) return alert('Kod nie istnieje');
-        const url = location.origin + '/?check&code=' + encodeURIComponent(code);
-        const w = window.open('', '_blank');
-        w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Druk</title>`+
-          `<style>@media print{ .ticket{width:58mm} .ticket *{font-family:monospace} .tk-line{border-top:1px dashed #000;margin:8px 0} }</style>`+
-          `</head><body><div class="ticket">`+
-          `<h2>ZDrapka</h2><div class="tk-line"></div>`+
-          `<div id="qr" style="width:140px;height:140px"></div>`+
-          `<div class="tk-line"></div>`+
-          `<div><b>Kod:</b> ${code}</div>`+
-          `<div><b>Nagroda:</b> ${data.prize||'niespodzianka'}</div>`+
-          `<div>Sprawdź: ${url}</div>`+
-          `<div class="tk-line"></div><div style="font-size:12px">Jednorazowy.</div>`+
-          `</div><script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>`+
-          `<script>new QRCode(document.getElementById('qr'), {text: '${url}', width:140, height:140, correctLevel: QRCode.CorrectLevel.M}); window.print();<\/script>`+
-          `</body></html>`);
-        w.document.close();
-      });
-
-      // Deep link via search (?check&code=...): auto switch to check
-      const params = new URLSearchParams(location.search);
-      if(params.has('check')){ location.hash = '#check'; const c=params.get('code')||''; const inp = qs('#form-check').querySelector('input[name="code"]'); if(inp){ inp.value=c; if(c) qs('#form-check').dispatchEvent(new Event('submit')); } }
-    });
-  </script>
+  <script src="/app.js" defer></script>
 </body>
 </html>
